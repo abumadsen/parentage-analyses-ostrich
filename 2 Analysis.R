@@ -76,12 +76,11 @@ individual.info$id[individual.info$Plateid %in% 1] <- Sraw$sampleID[match(indivi
 #Some individuals (i.e. samples), where run twice due to poor genotypig,and can be differentiated by runID
 plates.prepped.auto$runID <- paste(plates.prepped.auto$id,plates.prepped.auto$plateid, sep = ".")
 individual.info$runID <- paste(individual.info$id,individual.info$Plateid, sep = ".")
+individual.info$NoGeno <- individual.info$NoCall + individual.info$Invalid
 
 #Find duplicates by id
-head(individual.info)
 iddub <- individual.info$id[duplicated(individual.info$id) & !is.na(individual.info$id) & !individual.info$id %in% c("PC","NC")]
 inddub <- individual.info[individual.info$id %in% iddub,]
-inddub$NoGeno <- inddub$NoCall + inddub$Invalid
 
 # and check which has least genotype calls
 remove <- as.numeric()
@@ -92,11 +91,19 @@ for(i in iddub){
 
 #Remove them
 plates.prepped.auto <- plates.prepped.auto[!plates.prepped.auto$runID %in% remove,]
+individual.info <- individual.info[!individual.info$runID %in% remove,]
 
 #Remove plate info and id
 plates.prepped.auto$plateid <- NULL
 plates.prepped.auto$id <- NULL
 plates.prepped.auto <- dplyr::rename(plates.prepped.auto, "id" = "runID")
+
+#------------------  Print out individuals with less than X genotypes ------------------ 
+
+MinGeno = 60
+individual.info$Geno <- 94-individual.info$NoGeno
+rerun <- individual.info[individual.info$Geno <= MinGeno & !individual.info$id %in% c("NC",NA),]
+write.table(rerun,paste("output/Less than", MinGeno,"genotypes.csv", sep = " "), sep= ",", row.names = F)
 
 #------------------  Prep phenotypes ------------------ 
 

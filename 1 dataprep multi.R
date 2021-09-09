@@ -106,7 +106,7 @@ prep.plate.sex = function(platedf,plateid){
 MyPlates <- as.character(seq(1,5))
 plate.info <- as.numeric()
 individual.info <- as.numeric()
-plates.prepped <- as.numeric()s
+plates.prepped <- as.numeric()
 plates.sex <- as.numeric()
 
 for(i in MyPlates){

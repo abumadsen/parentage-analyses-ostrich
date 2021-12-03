@@ -51,9 +51,10 @@ check.individual = function(platedf,plateid){
   #Count nr of No Call or Invalid
   platedf$NoCall <- rowSums(platedf == "No Call")
   platedf$Invalid <- rowSums(platedf == "Invalid")
-
+  platedf$NoGeno <- platedf$NoCall + platedf$Invalid
+  
   #Reporting
-  return(data.frame("Plateid" = plateid,platedf[,c("id","NoCall","Invalid")]))
+  return(data.frame("Plateid" = plateid,platedf[,c("id","NoCall","Invalid","NoGeno")]))
 }
 
 #------------------
@@ -69,6 +70,7 @@ prep.plate = function(platedf,plateid){
   platedf2 = data.frame("id" = platedf$id)
   for(col in 2:ncol(platedf)){
     platedftemp <- colsplit(platedf[,col], split = ":", names = paste(colnames(platedf)[col], c("a","b"), sep = "")) #Create two alleles
+    platedftemp[platedftemp[,2] %in% "TRUE",2] <- "T" #If all are T's they become TRUE, this is fixed here
     platedf2 <- cbind(platedf2,platedftemp)
   }
   
@@ -83,7 +85,6 @@ prep.plate = function(platedf,plateid){
   
   return(cbind(plateid,platedf2))
 }
-
 
 #------------------
 

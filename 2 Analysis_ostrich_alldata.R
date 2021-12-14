@@ -29,7 +29,7 @@ pacman::p_load("MasterBayes","reshape","tidyverse")
 
 #--- Notes:
 #I tried running MasterBayes, letting it estimate genotypes/allele frequencies and error rates from the data
-#on two plates, so leaving out the "sP=sP" and "sP<-startPed(estG=FALSE, E1=0.005, E2=0.005, A=extractA(plates.prepped.auto))".
+#on two plates, so leaving out the "sP=sP" and "sP<-startPed(estG=FALSE, E1=myE2, E2=myE2, A=extractA(plates.prepped.auto))".
 #This however resulted in some very unconservative parentage calls, with the program being confident 
 #even if almost no genotypes called, and if I mannipulated the data such that 
 #If we give adult amles no gennotypes then they are also assiged as sires
@@ -51,7 +51,7 @@ pacman::p_load("MasterBayes","reshape","tidyverse")
 #''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''#
 
 
-# We assigned parentage to offspring using the R-package MasterBayes vs. 2.57 [Ref]. The pedigree was estimated with the function MLEped, which calculates a Maximum likelihood estimate of the pedigree. The probability of an allele being miss scored was set to the default value of 0.005 (Check sensitivity to this). Because of the experimental design, only adults present in group where the egg was recorded should be potential parents. Misassignments in the process of egg marking, transfer of egg id from egg to the hatched chick, and during blood sampling for genotyping are however possible. We therefore refrained from defining any prior requirements of the group of offspring and adults. As blood samples were not obtained for two adult males and two adult females, we also included the presence of these unsampled adults in the population when estimating parentage.
+# We assigned parentage to offspring using the R-package MasterBayes vs. 2.57 [Ref]. The pedigree was estimated with the function MLEped, which calculates a Maximum likelihood estimate of the pedigree. The probability of an allele being miss scored was set to the default value of myE2 (Check sensitivity to this). Because of the experimental design, only adults present in group where the egg was recorded should be potential parents. Misassignments in the process of egg marking, transfer of egg id from egg to the hatched chick, and during blood sampling for genotyping are however possible. We therefore refrained from defining any prior requirements of the group of offspring and adults. As blood samples were not obtained for two adult males and two adult females, we also included the presence of these unsampled adults in the population when estimating parentage.
 # 
 # With this analysis we could assign full parentage with 95% confidence for 1341 offspring (97.4 %). Only 16 offspring (1.2%) were assigned to parents from a different group than the offspring. The assigned sire and dam always belonged to the same group in the year where the offspring was recorded. This supports that these are indeed the parents of offspring whose group of origin was misassigned during recording.
 # 
@@ -273,6 +273,10 @@ nrow(rerun) #8
 # 7. Parentage analyses with MasterBayes -------------------------------------
 #''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''#
 
+#Set error rate
+myE2 = 0.005
+myE1 = 0.005
+
 #--- Check that all individuals in phenotypic dateset is repressented by a genotype sample
 Present <- Sraw$Animal.ID[Sraw$runID %in% plates.prepped.auto$id & !is.na(Sraw$Animal.ID)]
 length(unique(Sraw$Animal.ID[!Sraw$Animal.ID %in% Present & !is.na(Sraw$Animal.ID)])) # 0 -> GOOD!
@@ -312,7 +316,7 @@ length(S$sex[S$offspring %in% "0" & is.na(S$sex)]) #0 -> They have!
 
 # #---------- MCMCPED GIVES SAME RESULT ----------#
 # MyGdP <- GdataPed(plates.prepped.auto)
-# Sp.MCMC<-startPed(estG=FALSE, E1=0.005, E2=0.005, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE, USdam = 2, USsire = 2)
+# Sp.MCMC<-startPed(estG=FALSE, E1=myE1, E2=myE2, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE, USdam = 2, USsire = 2)
 # MyPdP<-PdataPed(formula=list(res.default), data=S, timevar=S$year, USdam = T, USsire = T)
 # m.sp.MCMC<-MCMCped(PdP=MyPdP, GdP=MyGdP, sP=Sp.MCMC, nitt=35000, thin=100, burnin=3000, write_postG=TRUE) 
 # 
@@ -336,7 +340,7 @@ res.default<-expression(varPed("offspring", restrict=0))
 PdP.new2<-PdataPed(formula=list(res.default), data=S,  USsire=TRUE, USdam=TRUE)
 
 #Because our model is quite simple, we dont need to do MCMC sampling, but can do with a CERVUS approximation
-X.list2<-getXlist(PdP=PdP.new2, GdP=MyGdP, E2=0.005)
+X.list2<-getXlist(PdP=PdP.new2, GdP=MyGdP, E1=myE1, E2=myE2)
 ped.sp<-MLE.ped(X.list2, USsire=TRUE,USdam=TRUE, nUSsire=2, nUSdam = 2, threshold=0.95)
 
 Parentage <- data.frame("runID" = ped.sp$P[,1], "dam.runID" = ped.sp$P[,2],"sire.runID" = ped.sp$P[,3], "parentage.prob" = ped.sp$prob)
@@ -388,7 +392,7 @@ nrow(NoCall)/nrow(Sout[Sout$age_cat != "Adult",])*100 #2.6% unasigned
 
 # #---------- MCMCPED GIVES SAME RESULT ----------#
 # MyGdP <- GdataPed(plates.prepped.auto.nomiss)
-# Sp.MCMC<-startPed(estG=FALSE, E1=0.005, E2=0.005, A=extractA(plates.prepped.auto.nomiss))
+# Sp.MCMC<-startPed(estG=FALSE, E1=myE1, E2=myE2, A=extractA(plates.prepped.auto.nomiss))
 # MyPdP<-PdataPed(formula=list(res.default), data=S.nomiss, timevar=S.nomiss$year, USdam = F, USsire = F)
 # m.sp.MCMC<-MCMCped(PdP=MyPdP, GdP=MyGdP, sP=Sp.MCMC, nitt=35000, thin=100, burnin=3000, write_postG=TRUE)
 # 
@@ -410,12 +414,20 @@ MyGdP.nomiss<-GdataPed(plates.prepped.auto.nomiss)
 res.yearcamp<-expression(varPed("year.camp", restrict="==", relational = "OFFSPRING"))
 
 PdP.new.yearcamp.nomiss<-PdataPed(formula=list(res.default,res.yearcamp), data=S.nomiss, timevar=S.nomiss$year, USsire=F, USdam=F)
-X.list.yearcamp.nomiss<-getXlist(PdP=PdP.new.yearcamp.nomiss, GdP=MyGdP.nomiss, E2=0.005)
+X.list.yearcamp.nomiss<-getXlist(PdP=PdP.new.yearcamp.nomiss, GdP=MyGdP.nomiss, E1=myE1, E2=myE2)
 ped.sp.yearcamp.nomiss<-MLE.ped(X.list.yearcamp.nomiss, USsire=F,USdam=F, threshold=0.95)
 
 Parentage.yearcamp.nomiss <- data.frame("runID" = ped.sp.yearcamp.nomiss$P[,1], "dam.runID" = ped.sp.yearcamp.nomiss$P[,2],"sire.runID" = ped.sp.yearcamp.nomiss$P[,3], "parentage.prob" = ped.sp.yearcamp.nomiss$prob)
 Parentage.yearcamp.nomiss.called <- Parentage.yearcamp.nomiss[!(is.na(Parentage.yearcamp.nomiss$dam.runID) | is.na(Parentage.yearcamp.nomiss$sire.runID)),]
 nrow(Parentage.yearcamp.nomiss.called)
+
+#Inspect one for fun
+#Parentage.yearcamp.nomiss.called
+#c15.268.1    a13.146.4     a13.96.4
+#plates.prepped.auto[plates.prepped.auto$id %in% c("c15.268.1","a13.146.4","a13.96.4"),]
+#Looks good
+
+
 
 #How many previously unassigned did we salvage
 saved1 <- Parentage.yearcamp.nomiss.called[Parentage.yearcamp.nomiss.called$runID %in% Parentage.missing$runID,]
@@ -450,11 +462,11 @@ S.camp <- S[S$year.camp %in% c("2016_20"),]
 
 #The CERVUS approximation doesnt work here, as it does not assign the unsampled dam and doesnt even give all offspring a sire, despite just one male in the group...
 # PdP.camp<-PdataPed(formula=list(res.default), data=S.camp, USsire=FALSE, USdam=TRUE)
-# X.list.camp<-getXlist(PdP=PdP.camp, GdP=MyGdP.camp, E2=0.005)
+# X.list.camp<-getXlist(PdP=PdP.camp, GdP=MyGdP.camp, E2=myE2)
 # ped.sp<-MLE.ped(X.list.camp, USsire=FALSE,USdam=TRUE, nUSdam=1, nUSsire=0, threshold=0.95)
 
 # So we go with the MCMC approach
-sPunsam<-startPed(estG=FALSE, E1=0.005, E2=0.005, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE, USdam = 1)
+sPunsam<-startPed(estG=FALSE, E1=myE1, E2=myE2, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE, USdam = 1)
 MyPdP<-PdataPed(formula=list(res.default), data=S.camp, USdam = T, USsire = F)
 m.sp.unsam<-MCMCped(PdP=MyPdP, GdP=MyGdP.camp, sP=sPunsam, nitt=35000, thin=100, burnin=3000, write_postG=TRUE) 
 ped.sp<-modeP(m.sp.unsam$P, threshold=0.95)
@@ -480,7 +492,7 @@ nrow(Parentage.missing) #now 19 missing
 MyGdP.camp <- GdataPed(plates.prepped.auto[plates.prepped.auto$id %in% S$id[S$year.camp %in% c("2018_62")],])
 S.camp <- S[S$year.camp %in% c("2018_62"),]
 
-sPunsam<-startPed(estG=FALSE, E1=0.005, E2=0.005, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE, USdam = 1)
+sPunsam<-startPed(estG=FALSE, E1=myE1, E2=myE2, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE, USdam = 1)
 MyPdP<-PdataPed(formula=list(res.default), data=S.camp, USdam = T, USsire = F)
 m.sp.unsam<-MCMCped(PdP=MyPdP, GdP=MyGdP.camp, sP=sPunsam, nitt=35000, thin=100, burnin=3000, write_postG=TRUE) 
 ped.sp<-modeP(m.sp.unsam$P, threshold=0.95)
@@ -510,7 +522,7 @@ nrow(Parentage.missing) #now 15 missing
 MyGdP.camp <- GdataPed(plates.prepped.auto[plates.prepped.auto$id %in% S$id[S$year.camp %in% c("2016_30")],])
 S.camp <- S[S$year.camp %in% c("2016_30"),]
 
-sPunsam<-startPed(estG=FALSE, E1=0.005, E2=0.005, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE, USsire = 1)
+sPunsam<-startPed(estG=FALSE, E1=myE1, E2=myE2, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE, USsire = 1)
 MyPdP<-PdataPed(formula=list(res.default), data=S.camp, USdam = F, USsire = T)
 m.sp.unsam<-MCMCped(PdP=MyPdP, GdP=MyGdP.camp, sP=sPunsam, nitt=35000, thin=100, burnin=3000, write_postG=TRUE) 
 ped.sp<-modeP(m.sp.unsam$P, threshold=0.95)
@@ -526,7 +538,7 @@ nrow(saved4) #0
 MyGdP.camp <- GdataPed(plates.prepped.auto[plates.prepped.auto$id %in% S$id[S$year.camp %in% c("2017_70")],])
 S.camp <- S[S$year.camp %in% c("2017_70"),]
 
-sPunsam<-startPed(estG=FALSE, E1=0.005, E2=0.005, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE, USsire = 1)
+sPunsam<-startPed(estG=FALSE, E1=myE1, E2=myE2, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE, USsire = 1)
 MyPdP<-PdataPed(formula=list(res.default), data=S.camp, USdam = F, USsire = T)
 m.sp.unsam<-MCMCped(PdP=MyPdP, GdP=MyGdP.camp, sP=sPunsam, nitt=35000, thin=100, burnin=3000, write_postG=TRUE) 
 ped.sp<-modeP(m.sp.unsam$P, threshold=0.95)
@@ -555,7 +567,7 @@ nrow(Parentage.missing) #now 10 missing
 MyGdP.camp <- GdataPed(plates.prepped.auto[plates.prepped.auto$id %in% S$id[S$year.camp %in% c("2016_70")],])
 S.camp <- S[S$year.camp %in% c("2016_70"),]
 
-sPunsam<-startPed(estG=FALSE, E1=0.005, E2=0.005, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE, USsire = 1)
+sPunsam<-startPed(estG=FALSE, E1=myE1, E2=myE2, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE, USsire = 1)
 MyPdP<-PdataPed(formula=list(res.default), data=S.camp, USdam = F, USsire = T)
 m.sp.unsam<-MCMCped(PdP=MyPdP, GdP=MyGdP.camp, sP=sPunsam, nitt=35000, thin=100, burnin=3000, write_postG=TRUE) 
 ped.sp<-modeP(m.sp.unsam$P, threshold=0.95)
@@ -571,7 +583,7 @@ nrow(saved6) #0
 MyGdP.camp <- GdataPed(plates.prepped.auto[plates.prepped.auto$id %in% S$id[S$year.camp %in% c("2017_63")],])
 S.camp <- S[S$year.camp %in% c("2017_63"),]
 
-sPunsam<-startPed(estG=FALSE, E1=0.005, E2=0.005, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE, USsire = 1)
+sPunsam<-startPed(estG=FALSE, E1=myE1, E2=myE2, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE, USsire = 1)
 MyPdP<-PdataPed(formula=list(res.default), data=S.camp, USdam = F, USsire = T)
 m.sp.unsam<-MCMCped(PdP=MyPdP, GdP=MyGdP.camp, sP=sPunsam, nitt=35000, thin=100, burnin=3000, write_postG=TRUE) 
 ped.sp<-modeP(m.sp.unsam$P, threshold=0.95)
@@ -637,8 +649,15 @@ nrow(unan) #10 = as above
 
 write.table(Sout.final, paste("output/",InSamples,"_parents.csv", sep = ""), sep= ",", row.names = F)
 
+
 #''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''#
-# 10. Final Notes ------------------------------------------------------------
+# 10. Did we miss future breeders? ------------------------------------------------------------
+#''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''#
+
+
+
+#''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''#
+# 11. Final Notes ------------------------------------------------------------
 #''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''#
 
 

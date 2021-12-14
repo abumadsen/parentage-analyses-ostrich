@@ -77,7 +77,7 @@ source("1 dataprep functions.R")
 MyPlates <- as.character(seq(1,18))
 plate.info <- as.numeric()
 individual.info <- as.numeric()
-plates.prepped <- as.numeric()
+plates.prepped.raw <- as.numeric()
 plates.sex <- as.numeric()
 
 for(i in MyPlates){
@@ -87,13 +87,13 @@ for(i in MyPlates){
   
   plate.info <- rbind(plate.info,check.plate(platedf = P, plateid = i))
   individual.info <- rbind(individual.info,check.individual(platedf = P, plateid = i))
-  plates.prepped <- rbind(plates.prepped,prep.plate(platedf = P, plateid = i))
+  plates.prepped.raw <- rbind(plates.prepped.raw,prep.plate(platedf = P, plateid = i))
   plates.sex <- rbind(plates.sex,prep.plate.sex(platedf = P, plateid = i))
 }
 
 #Remove markers with no data in any plates as this upsets MasterBayes
-Nodata <- names(which(colSums(is.na(plates.prepped)) == nrow(plates.prepped))) #No markers with no data
-plates.prepped <- plates.prepped[,!colnames(plates.prepped) %in% Nodata]
+Nodata <- names(which(colSums(is.na(plates.prepped.raw)) == nrow(plates.prepped.raw))) #No markers with no data
+plates.prepped.raw <- plates.prepped.raw[,!colnames(plates.prepped.raw) %in% Nodata]
 
 ##----------- EXPORT info files---------##
 write.table(plate.info, "output/plate.info.csv", sep = ",", row.names = F)
@@ -103,7 +103,7 @@ write.table(individual.info, "output/individual.info.csv", sep = ",", row.names 
 #''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''#
 # 4. Project specific data prep = RENAMING  ----------------------------------
 #''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''#
-
+plates.prepped <- plates.prepped.raw
 #Remove individuals a07.345 (OBS! Also written a7.345) and a11.421 since they are not part of the experimental population
 plates.prepped <- plates.prepped[which(plates.prepped$id != "a7.345" & plates.prepped$id != "a07.345" & plates.prepped$id != "a11.421"),]
 individual.info <- individual.info[which(individual.info$id != "a7.345" & individual.info$id != "a07.345" & individual.info$id != "a11.421"),]
@@ -654,7 +654,58 @@ write.table(Sout.final, paste("output/",InSamples,"_parents.csv", sep = ""), sep
 # 10. Did we miss future breeders? ------------------------------------------------------------
 #''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''#
 
+egg <- read.table("../../..//OstrichDatabase/Database/Intermediate files/1. Prepped seperate datasets/Eggs1998-2020_merged.csv", sep = ";", header = TRUE)
+egg[egg$eggid %in% unan$eggid,]
+egg2 <- read.table("../../..//OstrichDatabase/Database/Intermediate files/2. Crossreferenced datasets/Eggs1998-2020_merged_cleaned.csv", sep = ";", header = TRUE)
+egg2[egg2$eggid %in% unan$eggid,]
+#not according to egg data
 
+chick <- read.table("../../..//OstrichDatabase/Database/Intermediate files/1. Prepped seperate datasets/Chicks1998_2015_2016_2017_2018_2019_prepped.csv", sep = ";", header = TRUE)
+chick[chick$eggid %in% unan$eggid,]
+#One gets a animalid and is marked as mortcode = 555 = breeder flock!
+chick[chick$eggid %in% "11707160652",]
+#Check campdays 
+camps <- read.table("../../..//OstrichDatabase/Database/Intermediate files/2. Crossreferenced datasets/Camp1998_2017_cleaned_revised11_09_2019_rest_170220_2019_2020_prepped_cleaned.csv", sep = ";", header = TRUE)
+camps[camps$sireid %in% "1170099" | camps$damid %in% "1170099",]
+#This individual is used in both 2019 and 2020! ouch! 
+#Lets take a closer look
+Sout.final[Sout.final$eggid %in% "11707160652",]
+Sraw[Sraw$eggid %in% "11707160652",] # sampleID = "c17.67"
+
+#recreate info for all samples
+ind.info2 <- read.table("output/individual.info.csv", sep = ",", header = TRUE)
+#Only two, both with low genotypes calls, best only with 14 genotypes
+plates.prepped.raw[plates.prepped.raw$id %in% "c17.67",]
+
+#Try to run a parentage analysis just for that camp
+#----- camp 2017_65
+MyGdP.camp <- GdataPed(plates.prepped.auto[plates.prepped.auto$id %in% S$id[S$year.camp %in% c("2017_65")],])
+S.camp <- S[S$year.camp %in% c("2017_65"),]
+
+sPunsam<-startPed(estG=FALSE, E1=myE1, E2=myE2, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE, USsire = 1)
+MyPdP<-PdataPed(formula=list(res.default), data=S.camp, USdam = F, USsire = T)
+m.sp.unsam<-MCMCped(PdP=MyPdP, GdP=MyGdP.camp, sP=sPunsam, nitt=35000, thin=100, burnin=3000, write_postG=TRUE) 
+ped.sp<-modeP(m.sp.unsam$P, threshold=0.95)
+#All genotyped parents and one uncalled, which is the one we are looking for
+m.sp.unsam$P$c17.67.18
+#However disregarding the unsampled sire, there is support for a13.363.4 x a13.145.4
+
+#Try again without unsampled sire
+sPunsam<-startPed(estG=FALSE, E1=myE1, E2=myE2, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE)
+MyPdP<-PdataPed(formula=list(res.default), data=S.camp, USdam = F, USsire = F)
+m.sp.unsam<-MCMCped(PdP=MyPdP, GdP=MyGdP.camp, sP=sPunsam, nitt=35000, thin=100, burnin=3000, write_postG=TRUE) 
+ped.sp<-modeP(m.sp.unsam$P, threshold=0.95)
+m.sp.unsam$P$c17.67.18
+#This takes us to probability of 0.61 for  a13.363.4 x a13.145.4, 
+#Female appears certain, but not male.
+#However if we inspect the other parents called in that camp, then all have a13.363.4 as sire
+Sout.final[Sout.final$yearcamps_present %in% "2017_65", c("dam.runID","sire.runID")]
+
+#CONCLUSION: I think we can say with ok certainty that a13.363.4 x a13.145.4 is the parents
+
+# chick2 <- read.table("../../..//OstrichDatabase/Database/Intermediate files/2. Crossreferenced datasets/Chicks1998_2015_2016_2017_2018_2019_prepped_cleaned.csv", sep = ";", header = TRUE)
+# chick2[chick2$eggid %in% unan$eggid,]
+# #Same info as above
 
 #''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''#
 # 11. Final Notes ------------------------------------------------------------

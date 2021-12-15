@@ -701,6 +701,15 @@ m.sp.unsam$P$c17.67.18
 #However if we inspect the other parents called in that camp, then all have a13.363.4 as sire
 Sout.final[Sout.final$yearcamps_present %in% "2017_65", c("dam.runID","sire.runID")]
 
+#If we remove all other sires than the one sirering all the other offspring:
+MyGdP.camp <- GdataPed(plates.prepped.auto[plates.prepped.auto$id %in% S$id[S$year.camp %in% c("2017_65") & !S$id %in% c("a9.038.4","a9.380.5")],])
+S.camp <- S[S$year.camp %in% c("2017_65") & !S$id %in% c("a9.038.4","a9.380.5"),]
+sPunsam<-startPed(estG=FALSE, E1=myE1, E2=myE2, A=extractA(plates.prepped.auto), estUSsire = FALSE, estUSdam = FALSE)
+MyPdP<-PdataPed(formula=list(res.default), data=S.camp, USdam = F, USsire = F)
+m.sp.unsam<-MCMCped(PdP=MyPdP, GdP=MyGdP.camp, sP=sPunsam, nitt=35000, thin=100, burnin=3000, write_postG=TRUE) 
+ped.sp<-modeP(m.sp.unsam$P, threshold=0.90)
+#This increases the probability to to 0.92
+
 #CONCLUSION: I think we can say with ok certainty that a13.363.4 x a13.145.4 is the parents
 
 # chick2 <- read.table("../../..//OstrichDatabase/Database/Intermediate files/2. Crossreferenced datasets/Chicks1998_2015_2016_2017_2018_2019_prepped_cleaned.csv", sep = ";", header = TRUE)

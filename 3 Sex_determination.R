@@ -338,6 +338,14 @@ KnownCalled <- unique(Pp[!is.na(Pp$sex.geno) & !is.na(Pp$Sex),c("age_cat","sex.g
 nrow(KnownCalled) #1428 called individuals
 KnownMismatch <- KnownCalled[KnownCalled$sex.geno != KnownCalled$Sex,]
 nrow(KnownMismatch) #109 with a mismatch
+
+#Any pattern for plates?
+KnownCalledplate <- unique(Pp[!is.na(Pp$sex.geno) & !is.na(Pp$Sex),c("age_cat","sex.geno","Sex","sampleID","plate")]) #Make uniqe so individual sampled multuple times onlny counts as one
+nrow(KnownCalledplate) #1492 called individuals
+KnownMismatchPlate <- KnownCalledplate[KnownCalledplate$sex.geno != KnownCalledplate$Sex,]
+nrow(KnownMismatchPlate) #111 with a mismatch
+table(KnownMismatchPlate$plate) #no strong pattern, also plate 10 which Julian suspected was bad is not a problem.
+
 #How are these distributed across eggs and chicks?
 table(KnownMismatch$age_cat) #Only chicks, so all adults that we call, we call with 100% certainty. Hence chicks that are called wrongly must be due to mistakes by workers
 #What is the error rate for chicks
